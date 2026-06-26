@@ -1,0 +1,14 @@
+# Секреты и окружение
+.env
+CLAUDE.md
+
+# Виртуальное окружение
+.venv/
+
+# Загруженные пользователем файлы
+storage/*
+!storage/README.md
+
+# Кэш Python
+__pycache__/
+*.pyc

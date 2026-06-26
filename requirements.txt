@@ -1,0 +1,21 @@
+# Зависимости проекта. Установка: pip install -r requirements.txt
+
+# Веб-сервер (бэкенд)
+fastapi==0.138.0
+uvicorn==0.49.0
+python-multipart==0.0.32
+pydantic==2.13.4
+
+# ML / компьютерное зрение
+ultralytics==8.4.76
+torch==2.12.1
+opencv-python==4.13.0.92
+pillow==12.2.0
+
+# База данных
+SQLAlchemy==2.0.51
+psycopg2-binary
+python-dotenv==1.2.2
+
+# Графики
+matplotlib==3.10.9
