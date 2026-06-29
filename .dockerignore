@@ -1,0 +1,9 @@
+# Что НЕ копировать в образ (ускоряет сборку, не тащит лишнее)
+.venv/
+.git/
+.idea/
+__pycache__/
+*.pyc
+.env
+storage/*
+!storage/README.md

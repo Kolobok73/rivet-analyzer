@@ -1,0 +1,17 @@
+# Надстройка над docker-compose.yml для запуска НА GPU.
+# Запуск:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+# Меняет только сервис web: собирает по Dockerfile.gpu и резервирует видеокарты.
+# Сервис db (PostgreSQL) берётся из базового файла без изменений.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all          # отдать контейнеру все доступные GPU
+              capabilities: [gpu]

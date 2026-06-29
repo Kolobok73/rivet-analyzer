@@ -1,0 +1,36 @@
+# Запуск всего проекта: docker compose up --build
+# Пароль БД берётся из файла .env (переменная DB_PASSWORD).
+services:
+  # Контейнер с PostgreSQL. Базу rivet_analyzer создаёт сам (POSTGRES_DB).
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: rivet_analyzer
+    volumes:
+      - pgdata:/var/lib/postgresql   # данные БД переживают перезапуск (postgres:18 кладёт их в подпапку)
+    healthcheck:                          # проверка готовности БД
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # Контейнер с нашим приложением (FastAPI).
+  web:
+    build: .                # собрать по Dockerfile
+    ports:
+      - "8000:8000"         # пробросить порт наружу: localhost:8000 -> контейнер:8000
+    depends_on:
+      db:
+        condition: service_healthy   # дождаться, пока БД готова
+    environment:
+      # ВАЖНО: хост БД — это имя сервиса "db", а не localhost.
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: rivet_analyzer
+
+volumes:
+  pgdata:

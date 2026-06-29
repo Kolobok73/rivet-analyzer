@@ -8,6 +8,9 @@ pydantic==2.13.4
 
 # ML / компьютерное зрение
 ultralytics==8.4.76
+# torch: ниже — CPU-сборка. Для вычислений на видеокарте поставить CUDA-сборку, напр.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121   (CUDA 12.1)
+# Приложение само определит GPU (config.DEVICE) и будет считать на ней.
 torch==2.12.1
 opencv-python==4.13.0.92
 pillow==12.2.0

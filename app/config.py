@@ -10,15 +10,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MODELS_DIR = BASE_DIR / "models"
 STORAGE_DIR = BASE_DIR / "storage"
 
-# Лимиты загрузки (до 4 фото и до 4 видео за раз)
-MAX_IMAGES = 4
-MAX_VIDEOS = 4
+# Лимиты загрузки за раз (защита от случайной заливки тысяч файлов; меняется тут).
+MAX_IMAGES = 50
+MAX_VIDEOS = 50
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp"}
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv"}
 
-# Модель YOLO
+# Модель YOLO (детектор — много заклёпок на фото)
 MODEL_WEIGHTS_PATH = MODELS_DIR / "best.pt"
+
+# Классификатор ОДНОЙ заклёпки (годная/брак) — режим "N ракурсов одной заклёпки".
+CLASSIFIER_WEIGHTS_PATH = MODELS_DIR / "best_cls.pt"
 
 # Авторитетный источник имён классов — сама модель (model.names).
 # Здесь зеркало для справки; порядок сверен с best.pt.
@@ -29,6 +32,9 @@ CLASS_NAMES = {
 
 # Какой класс считается браком (сравниваем по имени, не по id).
 DEFECT_CLASS_NAME = "rivet_defect"
+
+# Заклёпка считается браком, если вероятность брака (по худшему ракурсу) >= порога, %.
+DEFECT_VERDICT_THRESHOLD = 50.0
 
 # Заклёпки, чья рамка ближе этой доли к краю кадра, считаем обрезанными
 # и не учитываем в проценте брака.
@@ -54,3 +60,12 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "rivet_analyzer")
 
 DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+# Устройство вычислений: CUDA (видеокарта), если доступна, иначе CPU.
+# Переопределяется переменной DEVICE: "cpu", "cuda:0", или "0,1" (несколько GPU).
+try:
+    import torch
+    _has_cuda = torch.cuda.is_available()
+except Exception:
+    _has_cuda = False
+DEVICE = os.getenv("DEVICE") or ("cuda:0" if _has_cuda else "cpu")

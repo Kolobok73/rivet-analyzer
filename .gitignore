@@ -12,3 +12,6 @@ storage/*
 # Кэш Python
 __pycache__/
 *.pyc
+
+# Логи
+logs/

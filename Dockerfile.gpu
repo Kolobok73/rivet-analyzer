@@ -1,0 +1,25 @@
+# GPU-образ: базовый от NVIDIA CUDA (среда CUDA уже внутри образа).
+# Драйвер берётся с хоста через NVIDIA Container Toolkit, поэтому ставить
+# драйвер в образ НЕ нужно — только CUDA-runtime (он в базовом образе) + cuDNN.
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+# Python 3.10 (он в Ubuntu 22.04 по умолчанию) + системные либы для OpenCV.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 python3-pip libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+# Сначала CUDA-сборка torch (cu121), затем остальные зависимости БЕЗ строки torch
+# (grep -v убирает её из requirements, чтобы не перетёрлась CPU-версией).
+RUN pip3 install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121 \
+    && grep -v "^torch" requirements.txt > /tmp/req.txt \
+    && pip3 install --no-cache-dir -r /tmp/req.txt
+
+COPY . .
+
+EXPOSE 8000
+
+# host 0.0.0.0 — чтобы был доступен снаружи контейнера.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

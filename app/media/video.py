@@ -36,3 +36,27 @@ def analyze_video(path: str) -> dict:
         "frames_analyzed": frames_analyzed,
         "summary": summary,
     }
+
+
+def extract_frames(path: str) -> list:
+    """Вернуть список кадров видео (раз в VIDEO_SAMPLE_SECONDS секунд, первые MAX_VIDEO_SECONDS).
+
+    Используется в режиме «одна заклёпка»: каждый кадр = отдельный ракурс.
+    """
+    cap = cv2.VideoCapture(path)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    step = max(1, round(fps * config.VIDEO_SAMPLE_SECONDS))
+    max_frames = int(fps * config.MAX_VIDEO_SECONDS)
+
+    frames = []
+    frame_index = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok or frame_index >= max_frames:
+            break
+        if frame_index % step == 0:
+            frames.append(frame)
+        frame_index += 1
+
+    cap.release()
+    return frames

@@ -24,6 +24,7 @@ def detect(source):
         conf=config.CONFIDENCE_THRESHOLD,
         iou=config.NMS_IOU_THRESHOLD,
         agnostic_nms=True,  # сливать налезающие рамки независимо от класса
+        device=config.DEVICE,  # CUDA (видеокарта) или CPU — выбирается автоматически
         verbose=False,
     )
     result = results[0]

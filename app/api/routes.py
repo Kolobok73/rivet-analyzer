@@ -1,4 +1,5 @@
 """Эндпоинты приложения (маршруты FastAPI)."""
+import logging
 from io import BytesIO
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -9,10 +10,12 @@ from pydantic import BaseModel
 from app import charts
 from app import config
 from app.db import crud
+from app.ml import classifier
 from app.ml import detector
 from app.media import video
 
 router = APIRouter()
+logger = logging.getLogger("rivet")
 
 
 class ChartItem(BaseModel):
@@ -27,6 +30,8 @@ async def analyze_one_image(file: UploadFile) -> dict:
     detections = detector.detect(image)
     summary = detector.defect_percentage(detections)
     crud.save_analysis(file.filename, "image", summary)
+    logger.info("Детекция фото %s: брак %s%%, заклёпок %s",
+                file.filename, summary["defect_percent"], summary["total"])
     return {
         "filename": file.filename,
         "summary": summary,
@@ -89,6 +94,74 @@ async def analyze_videos(files: list[UploadFile] = File(...)):
     for file in files:
         results.append(await analyze_one_video(file))
     return {"results": results}
+
+
+# Сохранить вердикт по заклёпке в историю (под формат таблицы analyses).
+def _save_rivet(result: dict, label: str) -> None:
+    is_defect = result["verdict"] == config.DEFECT_CLASS_NAME
+    crud.save_analysis(label, "rivet", {
+        "total": 1,
+        "ok": 0 if is_defect else 1,
+        "defect": 1 if is_defect else 0,
+        "defect_percent": result["defect_percent"],
+        "avg_confidence": result["confidence"],
+        "edge_ignored": 0,
+    })
+
+
+# Анализ ОДНОЙ заклёпки с N ракурсов-фото -> один вердикт (по худшему ракурсу).
+@router.post("/analyze/rivet")
+async def analyze_rivet(files: list[UploadFile] = File(...)):
+    images = []
+    for file in files:
+        content = await file.read()
+        images.append(Image.open(BytesIO(content)).convert("RGB"))
+    result = classifier.analyze_rivet(images)
+    _save_rivet(result, "заклёпка (ракурсы)")
+    logger.info("Заклёпка (фото, %d ракурсов): %s, брак %s%%",
+                len(images), result["verdict"], result["defect_percent"])
+    return result
+
+
+# Анализ ОДНОЙ заклёпки по ВИДЕО: каждый кадр = отдельный ракурс.
+@router.post("/analyze/rivet/video")
+async def analyze_rivet_video(file: UploadFile = File(...)):
+    content = await file.read()
+    save_path = config.STORAGE_DIR / file.filename
+    save_path.write_bytes(content)
+    frames = video.extract_frames(str(save_path))
+    save_path.unlink()
+    if not frames:
+        raise HTTPException(status_code=400, detail="Не удалось прочитать кадры из видео")
+    result = classifier.analyze_rivet(frames)
+    _save_rivet(result, "заклёпка (видео)")
+    logger.info("Заклёпка (видео, %d кадров): %s, брак %s%%",
+                len(frames), result["verdict"], result["defect_percent"])
+    return result
+
+
+# Классификация ОДНОГО ракурса-фото -> % брака. Для пошагового прогресса на фронте.
+@router.post("/classify/view")
+async def classify_view(file: UploadFile = File(...)):
+    content = await file.read()
+    image = Image.open(BytesIO(content)).convert("RGB")
+    probs = classifier.classify(image)
+    return {"defect_percent": probs[config.DEFECT_CLASS_NAME]}
+
+
+class ViewsIn(BaseModel):
+    views: list[float]
+    label: str = "заклёпка"
+
+
+# Свести % ракурсов (отдельно для фото) в вердикт и сохранить в историю.
+@router.post("/rivet/finalize")
+def rivet_finalize(data: ViewsIn):
+    result = classifier.verdict_from_views(data.views)
+    _save_rivet(result, data.label)
+    logger.info("Заклёпка (%s, %d ракурсов): %s, брак %s%%",
+                data.label, len(data.views), result["verdict"], result["defect_percent"])
+    return result
 
 
 @router.post("/chart/defects")
