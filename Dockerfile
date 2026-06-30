@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
     && grep -v "^torch" requirements.txt > /tmp/req.txt \
     && pip install --no-cache-dir -r /tmp/req.txt
 
-# Затем весь код (включая веса models/*.pt)
+# Затем весь код (включая веса models/*.pt).
 COPY . .
 
 EXPOSE 8000
